@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SignBridge</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <h1 class="app-title">SignBridge</h1>
+    </div>
+    <div class="header-right">
+      <button type="button" id="reset-all-btn" class="btn btn-secondary">Reset All</button>
+      <div id="system-status" class="status-indicator" role="status" aria-live="polite">Model: loading</div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <div class="two-column-layout">
+      <!-- LEFT COLUMN: Incoming (they speak) -->
+      <section class="panel incoming-panel" aria-labelledby="incoming-heading">
+        <div class="panel-header">
+          <h2 id="incoming-heading">Incoming (they speak)</h2>
+          <div id="speech-status" class="status-indicator" role="status" aria-live="polite">Mic: Idle</div>
+        </div>
+
+        <div id="speech-error-box" class="error-box" role="alert" style="display: none;">
+          <div class="error-title" id="speech-error-title">Notice</div>
+          <div class="error-desc" id="speech-error-desc"></div>
+        </div>
+        
+        <div class="panel-controls speech-controls">
+          <button type="button" id="toggle-mic-btn" class="btn btn-primary">Start Listening</button>
+          
+          <div class="control-group">
+            <label for="speech-lang-select" class="inline-label">Language:</label>
+            <select id="speech-lang-select" class="select-input">
+              <option value="en-US" selected>en-US (United States)</option>
+              <option value="en-IN">en-IN (India)</option>
+              <option value="en-GB">en-GB (United Kingdom)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="speed-control-group">
+          <label for="speed-slider" class="inline-label">
+            Speed: <span id="speed-value-label">800 ms</span>
+          </label>
+          <input type="range" id="speed-slider" class="range-slider" min="300" max="1500" value="800" step="50">
+        </div>
+
+        <!-- Offline / No-mic Test Input -->
+        <div class="test-input-section">
+          <label for="test-spell-input" class="section-label">Test Input (No Mic Required)</label>
+          <div class="test-input-row">
+            <input type="text" id="test-spell-input" class="text-input" placeholder="Type words to fingerspell (e.g. Hello world)...">
+            <button type="button" id="test-spell-btn" class="btn btn-secondary">Spell It</button>
+            <button type="button" id="clear-queue-btn" class="btn btn-secondary">Clear Queue</button>
+          </div>
+          <div id="queue-status-text" class="queue-status-text" aria-live="polite">Queue: 0 letters</div>
+        </div>
+
+        <div class="transcript-section">
+          <label for="incoming-transcript" class="section-label">Spoken Transcript</label>
+          <div id="incoming-transcript" class="transcript-display" role="region" aria-live="polite">
+            <div id="final-transcripts" class="final-transcripts-container">
+              <div class="transcript-empty-hint">[Speech transcript will appear here]</div>
+            </div>
+            <div id="interim-transcript" class="interim-transcript-line"></div>
+          </div>
+        </div>
+
+        <div class="fingerspelling-section">
+          <label class="section-label">ASL Fingerspelling</label>
+          <div class="fingerspell-display-wrapper">
+            <!-- Large square card with 2px black border -->
+            <div id="fingerspell-card" class="fingerspell-card" role="region" aria-label="ASL Fingerspelling Display" aria-live="polite">
+              <img id="fingerspell-img" class="fingerspell-card-img" alt="ASL sign" style="display: none;">
+              <span id="fingerspell-letter" class="fingerspell-large-letter">-</span>
+            </div>
+            <!-- Word tracker showing current word with active letter bold and underlined -->
+            <div id="current-word-display" class="current-word-display" aria-live="polite">
+              <span class="word-placeholder">Awaiting input</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN: Outgoing (you sign or type) -->
+      <section class="panel outgoing-panel" aria-labelledby="outgoing-heading">
+        <div class="panel-header">
+          <h2 id="outgoing-heading">Outgoing (you sign or type)</h2>
+          <div class="status-indicators-group">
+            <div id="tts-status" class="status-indicator" role="status" aria-live="polite">TTS: Ready</div>
+            <div id="camera-status" class="status-indicator" role="status" aria-live="polite">Camera: Off</div>
+            <div id="hand-status" class="status-indicator" role="status" aria-live="polite">Hand: not detected</div>
+          </div>
+        </div>
+
+        <!-- TOP OF RIGHT COLUMN: Reply Box + Text-to-Speech -->
+        <section class="tts-reply-section" aria-labelledby="reply-heading">
+          <h3 id="reply-heading" class="section-heading">Type Reply & Text-to-Speech</h3>
+
+          <div id="tts-error-box" class="error-box" role="alert" style="display: none;">
+            <div class="error-title" id="tts-error-title">Notice</div>
+            <div class="error-desc" id="tts-error-desc"></div>
+          </div>
+
+          <div class="tts-settings-row">
+            <div class="control-group tts-voice-group">
+              <label for="tts-voice-select" class="inline-label">Voice:</label>
+              <select id="tts-voice-select" class="select-input">
+                <option value="">Loading voices...</option>
+              </select>
+            </div>
+            
+            <div class="rate-control-group">
+              <label for="tts-rate-slider" class="inline-label">
+                Rate: <span id="tts-rate-label">1.0x</span>
+              </label>
+              <input type="range" id="tts-rate-slider" class="range-slider" min="0.5" max="2.0" value="1.0" step="0.1">
+            </div>
+          </div>
+
+          <div class="reply-input-section">
+            <label for="reply-text-input" class="section-label">Reply Message</label>
+            <div class="type-reply-row">
+              <input type="text" id="reply-text-input" class="text-input" placeholder="Type a message to speak aloud...">
+              <button type="button" id="send-reply-btn" class="btn btn-primary">Send</button>
+            </div>
+          </div>
+
+          <div class="quick-replies-section">
+            <div class="quick-replies-label">Quick Replies:</div>
+            <div class="quick-replies-grid">
+              <button type="button" class="btn btn-secondary quick-reply-btn" data-reply="Yes">Yes</button>
+              <button type="button" class="btn btn-secondary quick-reply-btn" data-reply="No">No</button>
+              <button type="button" class="btn btn-secondary quick-reply-btn" data-reply="Thank you">Thank you</button>
+              <button type="button" class="btn btn-secondary quick-reply-btn" data-reply="Please repeat that">Please repeat that</button>
+              <button type="button" class="btn btn-secondary quick-reply-btn" data-reply="Speak slower">Speak slower</button>
+              <button type="button" class="btn btn-secondary quick-reply-btn" data-reply="Give me a second">Give me a second</button>
+              <button type="button" class="btn btn-secondary quick-reply-btn" data-reply="I need help">I need help</button>
+              <button type="button" class="btn btn-secondary quick-reply-btn" data-reply="Hello">Hello</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- CAMERA / SIGNING SECTION -->
+        <div id="camera-error-box" class="error-box" role="alert" style="display: none;">
+          <div class="error-title" id="camera-error-title">Notice</div>
+          <div class="error-desc" id="camera-error-desc"></div>
+        </div>
+
+        <div class="panel-controls">
+          <button type="button" id="toggle-camera-btn" class="btn btn-primary">Camera on</button>
+          <button type="button" id="clear-outgoing-btn" class="btn btn-secondary">Clear Word</button>
+        </div>
+
+        <div class="camera-section">
+          <div class="video-container">
+            <video id="webcam-video" autoplay playsinline muted class="camera-feed"></video>
+            <canvas id="hand-canvas" class="landmark-canvas"></canvas>
+            <div id="camera-placeholder" class="camera-placeholder-box">
+              [Camera Feed Placeholder]
+            </div>
+          </div>
+          <div class="recognition-preview">
+            <span class="preview-label">Live Sign Recognition:</span>
+            <span id="detected-sign" class="preview-value" aria-live="polite">Detected: None</span>
+          </div>
+
+          <!-- Hold progress bar (filling black bar inside bordered box) -->
+          <div class="hold-progress-container">
+            <div class="hold-progress-header">
+              <span class="hold-progress-label">Hold Sign to Accept (1s):</span>
+              <span id="hold-progress-pct" class="hold-progress-label">0%</span>
+            </div>
+            <div class="hold-progress-box" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div id="hold-progress-bar" class="hold-progress-bar" style="width: 0%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Word Buffer -->
+        <div class="word-buffer-section">
+          <label class="section-label">Current Word Buffer</label>
+          <div id="word-buffer-display" class="word-buffer-box" aria-live="polite">
+            Word: 
+          </div>
+          <div class="word-buffer-controls">
+            <button type="button" id="manual-space-btn" class="btn btn-secondary">Space</button>
+            <button type="button" id="manual-delete-btn" class="btn btn-secondary">Delete</button>
+            <button type="button" id="manual-commit-send-btn" class="btn btn-primary">Send</button>
+            <label for="auto-send-toggle" class="checkbox-label">
+              <input type="checkbox" id="auto-send-toggle" class="checkbox-input">
+              Auto-send after 4s pause
+            </label>
+          </div>
+        </div>
+
+        <div class="outgoing-text-section">
+          <label for="outgoing-text" class="section-label">Constructed Message</label>
+          <div id="outgoing-text" class="transcript-display" role="region" aria-live="polite">
+            [Signed words will accumulate here. Click 'Speak Message' to read aloud.]
+          </div>
+          <div class="speak-controls">
+            <button type="button" id="speak-outgoing-btn" class="btn btn-primary">Speak Message</button>
+            <button type="button" id="clear-message-btn" class="btn btn-secondary">Clear Message</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- FULL-WIDTH: Conversation Log -->
+    <section class="panel conversation-panel" aria-labelledby="conversation-heading">
+      <div class="panel-header">
+        <h2 id="conversation-heading">Conversation</h2>
+        <button type="button" id="clear-history-btn" class="btn btn-secondary">Clear History</button>
+      </div>
+      <div id="conversation-log" class="conversation-log" role="log" aria-live="polite">
+        <div class="log-entry placeholder-entry">[Conversation history will appear here]</div>
+      </div>
+    </section>
+
+    <!-- TRAINING MODE: Closed by default -->
+    <details class="training-details" id="training-details">
+      <summary class="training-summary">Training Mode (KNN Custom Classifier)</summary>
+      <div class="training-body">
+        <div class="training-helper-box">
+          <p class="training-helper-text">
+            <strong>Tip:</strong> Vary your hand angle and distance slightly while recording. Start with L, V, Y, B, W, O, SPACE, DELETE.
+          </p>
+        </div>
+
+        <div id="training-error-box" class="error-box" role="alert" style="display: none;">
+          <div class="error-title" id="training-error-title">Notice</div>
+          <div class="error-desc" id="training-error-desc"></div>
+        </div>
+
+        <div class="training-controls">
+          <div class="control-group">
+            <label for="training-sign-select" class="inline-label">Target Label:</label>
+            <select id="training-sign-select" class="select-input">
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+              <option value="E">E</option>
+              <option value="F">F</option>
+              <option value="G">G</option>
+              <option value="H">H</option>
+              <option value="I">I</option>
+              <option value="J">J</option>
+              <option value="K">K</option>
+              <option value="L">L</option>
+              <option value="M">M</option>
+              <option value="N">N</option>
+              <option value="O">O</option>
+              <option value="P">P</option>
+              <option value="Q">Q</option>
+              <option value="R">R</option>
+              <option value="S">S</option>
+              <option value="T">T</option>
+              <option value="U">U</option>
+              <option value="V">V</option>
+              <option value="W">W</option>
+              <option value="X">X</option>
+              <option value="Y">Y</option>
+              <option value="Z">Z</option>
+              <option value="SPACE">SPACE (open palm)</option>
+              <option value="DELETE">DELETE (fist)</option>
+            </select>
+          </div>
+          <button type="button" id="record-sample-btn" class="btn btn-primary">Record</button>
+          <div id="recording-status-badge" class="status-indicator" role="status" aria-live="polite">Status: Idle</div>
+        </div>
+
+        <!-- Table of labels with sample counts -->
+        <div class="training-table-section">
+          <div class="training-table-header">
+            <span class="section-label">Recorded Samples:</span>
+            <div id="training-total-samples" class="status-indicator" role="status" aria-live="polite">Total Samples: 0</div>
+          </div>
+          <div class="training-table-container">
+            <table class="training-table" aria-label="Recorded training samples per sign label">
+              <thead>
+                <tr>
+                  <th scope="col">Label</th>
+                  <th scope="col">Samples</th>
+                  <th scope="col" class="action-col">Action</th>
+                </tr>
+              </thead>
+              <tbody id="training-table-body">
+                <tr>
+                  <td colspan="3" class="table-empty-cell">No samples recorded yet. Select a label and click "Record".</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="training-io-row">
+          <button type="button" id="clear-all-samples-btn" class="btn btn-secondary">Clear All Samples</button>
+          <button type="button" id="export-model-btn" class="btn btn-secondary">Export JSON</button>
+          <label for="import-model-input" class="btn btn-secondary file-input-label">Import JSON</label>
+          <input type="file" id="import-model-input" accept=".json" class="file-input-hidden">
+        </div>
+      </div>
+    </details>
+
+    <!-- KEYBOARD SHORTCUTS: Closed by default -->
+    <details class="shortcuts-details" id="shortcuts-details">
+      <summary class="shortcuts-summary">Keyboard Shortcuts</summary>
+      <ul class="shortcuts-list">
+        <li><kbd>M</kbd> <span>Toggle microphone on / off</span></li>
+        <li><kbd>C</kbd> <span>Toggle camera on / off</span></li>
+        <li><kbd>Ctrl</kbd> + <kbd>Enter</kbd> <span>Send and speak outgoing message</span></li>
+      </ul>
+    </details>
+  </main>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
